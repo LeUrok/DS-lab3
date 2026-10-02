@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/LeUrok/DS-lab2/gateway-service/internal/client"
+	"github.com/LeUrok/DS-lab2/gateway-service/internal/queue"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -17,10 +18,16 @@ type Handler struct {
 	cars    *client.CarsClient
 	rental  *client.RentalClient
 	payment *client.PaymentClient
+	queue   *queue.Queue
 }
 
-func NewHandler(cars *client.CarsClient, rental *client.RentalClient, payment *client.PaymentClient) *Handler {
-	return &Handler{cars: cars, rental: rental, payment: payment}
+func NewHandler(
+	cars *client.CarsClient,
+	rental *client.RentalClient,
+	payment *client.PaymentClient,
+	q *queue.Queue,
+) *Handler {
+	return &Handler{cars: cars, rental: rental, payment: payment, queue: q}
 }
 
 const dateLayout = "2006-01-02"
@@ -331,22 +338,36 @@ func (h *Handler) CancelRental(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "rental not found")
 			return
 		}
-		if errors.Is(err, client.ErrConflict) {
-			writeError(w, http.StatusConflict, "rental cannot be canceled")
+		if errors.Is(err, client.ErrUnavailable) {
+			writeError(w, http.StatusServiceUnavailable, "Rental Service unavailable")
 			return
 		}
 		writeError(w, http.StatusInternalServerError, "failed to cancel rental")
 		return
 	}
 
-	if err := h.payment.Cancel(r.Context(), rental.PaymentUID); err != nil && !errors.Is(err, client.ErrNotFound) {
-		writeError(w, http.StatusInternalServerError, "failed to cancel payment")
-		return
+	if err := h.payment.Cancel(r.Context(), rental.PaymentUID); err != nil {
+		if errors.Is(err, client.ErrUnavailable) {
+			h.queue.Enqueue(queue.Task{
+				Type: queue.TaskCancelPayment,
+				Payload: map[string]string{
+					"paymentUid": rental.PaymentUID,
+				},
+				MaxRetries: 5,
+			})
+		}
 	}
 
-	if err := h.cars.Unreserve(r.Context(), rental.CarUID); err != nil && !errors.Is(err, client.ErrNotFound) {
-		writeError(w, http.StatusInternalServerError, "failed to unreserve car")
-		return
+	if err := h.cars.Unreserve(r.Context(), rental.CarUID); err != nil {
+		if errors.Is(err, client.ErrUnavailable) {
+			h.queue.Enqueue(queue.Task{
+				Type: queue.TaskUnreserveCar,
+				Payload: map[string]string{
+					"carUid": rental.CarUID,
+				},
+				MaxRetries: 5,
+			})
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)

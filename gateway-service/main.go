@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/LeUrok/DS-lab2/gateway-service/internal/api"
 	"github.com/LeUrok/DS-lab2/gateway-service/internal/client"
 	"github.com/LeUrok/DS-lab2/gateway-service/internal/config"
+	"github.com/LeUrok/DS-lab2/gateway-service/internal/queue"
 )
 
 func main() {
@@ -21,7 +23,23 @@ func main() {
 	rental := client.NewRentalClient(cfg.RentalURL)
 	payment := client.NewPaymentClient(cfg.PaymentURL)
 
-	h := api.NewHandler(cars, rental, payment)
+	handler := func(ctx context.Context, task queue.Task) error {
+		switch task.Type {
+		case queue.TaskCancelPayment:
+			return payment.Cancel(ctx, task.Payload["paymentUid"])
+		case queue.TaskUnreserveCar:
+			return cars.Unreserve(ctx, task.Payload["carUid"])
+		}
+		return fmt.Errorf("unknown task: %s", task.Type)
+	}
+
+	q := queue.New(100, handler)
+
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	defer workerCancel()
+	q.Start(workerCtx)
+
+	h := api.NewHandler(cars, rental, payment, q)
 	router := api.NewRouter(h)
 
 	srv := &http.Server{
