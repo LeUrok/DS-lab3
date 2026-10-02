@@ -45,6 +45,7 @@ jobs:
           WAIT_PORTS: 8080,8070,8060,8050
 
       # TODO setup variant, service and port
+      
       - name: Install newman
         run: npm install -g newman
 
