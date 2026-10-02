@@ -51,16 +51,16 @@ type paginationResponse struct {
 }
 
 type carInfo struct {
-	CarUID             string `json:"carUid"`
-	Brand              string `json:"brand"`
-	Model              string `json:"model"`
-	RegistrationNumber string `json:"registrationNumber"`
+	CarUID             string `json:"carUid,omitempty"`
+	Brand              string `json:"brand,omitempty"`
+	Model              string `json:"model,omitempty"`
+	RegistrationNumber string `json:"registrationNumber,omitempty"`
 }
 
 type paymentInfo struct {
-	PaymentUID string `json:"paymentUid"`
-	Status     string `json:"status"`
-	Price      int    `json:"price"`
+	PaymentUID string `json:"paymentUid,omitempty"`
+	Status     string `json:"status,omitempty"`
+	Price      int    `json:"price,omitempty"`
 }
 
 type rentalResponse struct {
