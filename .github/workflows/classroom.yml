@@ -19,13 +19,22 @@ jobs:
 
       # TODO build and run unit tests
 
-      - name: Build images
-        timeout-minutes: 10
-        run: docker compose build
-      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
       - name: Test cars-service
         working-directory: cars-service
         run: go test ./... -v
+
+      - name: Test gateway-service
+        working-directory: gateway-service
+        run: go test ./... -v
+
+      - name: Build images
+        timeout-minutes: 10
+        run: docker compose build
 
       - name: Run containers
         timeout-minutes: 5
@@ -35,14 +44,17 @@ jobs:
         env:
           WAIT_PORTS: 8080,8070,8060,8050
 
+      # TODO setup variant, service and port
+      - name: Install newman
+        run: npm install -g newman
+
       - name: Run API Tests
-        uses: matt-ball/newman-action@master
-        with:
-          # TODO insert your variant
-          collection: v3/postman/collection.json
-          environment: v3/postman/environment.json
-          delayRequest: 100
-          reporters: '[ "cli" ]'
+        timeout-minutes: 5
+        run: ./scripts/test-script.sh
+        env:
+          VARIANT: v3
+          SERVICE_NAME: payment-service
+          PORT_NUMBER: 8050
 
       - uses: education/autograding@v1
         id: autograder
@@ -53,7 +65,7 @@ jobs:
         with:
           google_token: ${{secrets.GOOGLE_API_KEY}}
           sheet_id: "1xkgjUX6Qmk7rdJG-QPOToav-HWWtthJjnShIKnw3oIY"
-          homework_number: 2
+          homework_number: 3
           user_column: 'D'
           column_offset: 'F'
           mark: "'+"

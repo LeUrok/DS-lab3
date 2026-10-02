@@ -10,7 +10,7 @@ type State int
 
 const (
 	StateClosed State = iota
-	StateOpen 
+	StateOpen
 	StateHalfOpen
 )
 
@@ -29,22 +29,22 @@ func (s State) String() string {
 var ErrCircuitOpen = errors.New("circuitbreaker is open")
 
 type Config struct {
-	MaxFailures int
+	MaxFailures  int
 	ResetTimeout time.Duration
 }
 
-type Breaker struct{
-	mu sync.Mutex
-	cfg Config
-	state State
-	failures int
+type Breaker struct {
+	mu          sync.Mutex
+	cfg         Config
+	state       State
+	failures    int
 	lastFailure time.Time
-	openedAt time.Time
+	openedAt    time.Time
 }
 
 func New(cfg Config) *Breaker {
 	return &Breaker{
-		cfg: cfg,
+		cfg:   cfg,
 		state: StateClosed,
 	}
 }
@@ -69,7 +69,7 @@ func (b *Breaker) Allow() error {
 			b.state = StateHalfOpen
 			return nil
 		}
-		
+
 		return ErrCircuitOpen
 	case StateHalfOpen:
 		return ErrCircuitOpen

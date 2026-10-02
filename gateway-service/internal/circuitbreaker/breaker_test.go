@@ -40,7 +40,7 @@ func TestBreaker_SuccessResetsCounter(t *testing.T) {
 	b.Failure()
 
 	b.Allow()
-	b.Success() 
+	b.Success()
 
 	b.Allow()
 	b.Failure()
@@ -101,7 +101,7 @@ func TestBreaker_HalfOpenToOpenOnFailure(t *testing.T) {
 	time.Sleep(60 * time.Millisecond)
 
 	b.Allow()
-	b.Failure() 
+	b.Failure()
 
 	if b.State() != StateOpen {
 		t.Fatalf("expected OPEN, got %s", b.State())

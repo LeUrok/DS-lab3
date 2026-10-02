@@ -125,6 +125,11 @@ func (h *Handler) GetRentals(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rentals, err := h.rental.GetByUsername(r.Context(), username)
+	if errors.Is(err, client.ErrUnavailable) {
+		writeError(w, http.StatusServiceUnavailable, "Rental Service unavailable")
+		return
+	}
+
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to get rentals")
 		return
@@ -132,12 +137,7 @@ func (h *Handler) GetRentals(w http.ResponseWriter, r *http.Request) {
 
 	result := make([]rentalResponse, 0, len(rentals))
 	for _, rental := range rentals {
-		rr, err := h.enrichRental(r.Context(), rental)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to enrich rental")
-			return
-		}
-		result = append(result, *rr)
+		result = append(result, *h.enrichRentalWithFallback(r.Context(), rental))
 	}
 	writeJSON(w, http.StatusOK, result)
 }
@@ -160,11 +160,7 @@ func (h *Handler) GetRentalByUID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rr, err := h.enrichRental(r.Context(), rental)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to enrich rental")
-		return
-	}
+	rr := h.enrichRentalWithFallback(r.Context(), rental)
 	writeJSON(w, http.StatusOK, rr)
 }
 
@@ -201,6 +197,10 @@ func (h *Handler) CreateRental(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "car not found")
 		return
 	}
+	if errors.Is(err, client.ErrUnavailable) {
+		writeError(w, http.StatusServiceUnavailable, "Cars Service unavailable")
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to get car")
 		return
@@ -214,6 +214,10 @@ func (h *Handler) CreateRental(w http.ResponseWriter, r *http.Request) {
 	price := days * car.Price
 
 	payment, err := h.payment.Create(r.Context(), price)
+	if errors.Is(err, client.ErrUnavailable) {
+		writeError(w, http.StatusServiceUnavailable, "Payment Service unavailable")
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create payment")
 		return
@@ -223,6 +227,10 @@ func (h *Handler) CreateRental(w http.ResponseWriter, r *http.Request) {
 		_ = h.payment.Cancel(r.Context(), payment.PaymentUID)
 		if errors.Is(err, client.ErrConflict) {
 			writeError(w, http.StatusConflict, "car already reserved")
+			return
+		}
+		if errors.Is(err, client.ErrUnavailable) {
+			writeError(w, http.StatusServiceUnavailable, "Cars Service unavailable")
 			return
 		}
 		writeError(w, http.StatusInternalServerError, "failed to reserve car")
@@ -239,6 +247,10 @@ func (h *Handler) CreateRental(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		_ = h.cars.Unreserve(r.Context(), req.CarUID)
 		_ = h.payment.Cancel(r.Context(), payment.PaymentUID)
+		if errors.Is(err, client.ErrUnavailable) {
+			writeError(w, http.StatusServiceUnavailable, "Rental Service unavailable")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "failed to create rental")
 		return
 	}
@@ -340,32 +352,35 @@ func (h *Handler) CancelRental(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) enrichRental(ctx context.Context, rental *client.RentalInfo) (*rentalResponse, error) {
-	car, err := h.cars.GetByUID(ctx, rental.CarUID)
-	if err != nil {
-		return nil, err
-	}
-	payment, err := h.payment.GetByUID(ctx, rental.PaymentUID)
-	if err != nil {
-		return nil, err
-	}
-	return &rentalResponse{
+func (h *Handler) enrichRentalWithFallback(ctx context.Context, rental *client.RentalInfo) *rentalResponse {
+	rr := &rentalResponse{
 		RentalUID: rental.RentalUID,
 		Status:    rental.Status,
 		DateFrom:  rental.DateFrom,
 		DateTo:    rental.DateTo,
-		Car: carInfo{
+	}
+
+	car, err := h.cars.GetByUID(ctx, rental.CarUID)
+	if err == nil {
+		rr.Car = carInfo{
 			CarUID:             car.CarUID,
 			Brand:              car.Brand,
 			Model:              car.Model,
 			RegistrationNumber: car.RegistrationNumber,
-		},
-		Payment: paymentInfo{
+		}
+	} else if errors.Is(err, client.ErrNotFound) {
+		rr.Car = carInfo{CarUID: rental.CarUID}
+	}
+
+	payment, err := h.payment.GetByUID(ctx, rental.PaymentUID)
+	if err == nil {
+		rr.Payment = paymentInfo{
 			PaymentUID: payment.PaymentUID,
 			Status:     payment.Status,
 			Price:      payment.Price,
-		},
-	}, nil
+		}
+	}
+	return rr
 }
 
 func parseIntQuery(r *http.Request, key string, def int) int {

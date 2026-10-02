@@ -13,6 +13,18 @@ CREATE TABLE cars
     availability        BOOLEAN     NOT NULL
 );
 
+INSERT INTO cars (car_uid, brand, model, registration_number, power, price, type, availability) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'Toyota', 'Camry', 'А001АА01', 200, 2500, 'SEDAN', true),
+  ('22222222-2222-2222-2222-222222222222', 'BMW', 'X5', 'А002АА01', 300, 5000, 'SUV', true),
+  ('33333333-3333-3333-3333-333333333333', 'Kia', 'Rio', 'А003АА01', 120, 1500, 'SEDAN', true),
+  ('44444444-4444-4444-4444-444444444444', 'Audi', 'Q7', 'А004АА01', 333, 6000, 'SUV', true),
+  ('55555555-5555-5555-5555-555555555555', 'Ford', 'Focus', 'А005АА01', 150, 1800, 'SEDAN', true),
+  ('66666666-6666-6666-6666-666666666666', 'Volkswagen', 'Tiguan', 'А006АА01', 180, 3000, 'SUV', true),
+  ('77777777-7777-7777-7777-777777777777', 'Skoda', 'Octavia', 'А007АА01', 160, 2200, 'SEDAN', true),
+  ('88888888-8888-8888-8888-888888888888', 'Hyundai', 'Tucson', 'А008АА01', 170, 2800, 'SUV', true),
+  ('99999999-9999-9999-9999-999999999999', 'Nissan', 'Qashqai', 'А009АА01', 160, 2700, 'SUV', true),
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Mazda', 'CX-5', 'А010АА01', 190, 3200, 'SUV', true);
+
 INSERT INTO cars (car_uid, brand, model, registration_number, power, price, type, availability)
 VALUES ('109b42f3-198d-4c89-9276-a7520a7120ab',
         'Mercedes Benz',
