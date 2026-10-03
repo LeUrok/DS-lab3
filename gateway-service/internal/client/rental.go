@@ -16,15 +16,17 @@ import (
 type RentalClient struct {
 	baseURL string
 	http    *http.Client
-	breaker *circuitbreaker.Breaker
+	breaker *circuitbreaker.TimestampBreaker
 }
 
 func NewRentalClient(baseURL string) *RentalClient {
 	return &RentalClient{
 		baseURL: baseURL, http: &http.Client{},
-		breaker: circuitbreaker.New(circuitbreaker.Config{
-			MaxFailures:  3,
-			ResetTimeout: 10 * time.Second,
+		breaker: circuitbreaker.NewTimestampBreaker(circuitbreaker.WindowConfig{
+			WindowSize:     60,               
+			MaxFailures: 0.5,              
+			MinRequests:    10,               
+			ResetTimeout:   10 * time.Second, 
 		})}
 }
 

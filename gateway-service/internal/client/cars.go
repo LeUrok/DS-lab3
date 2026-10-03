@@ -14,16 +14,18 @@ import (
 type CarsClient struct {
 	baseURL string
 	http    *http.Client
-	breaker *circuitbreaker.Breaker
+	breaker *circuitbreaker.TimestampBreaker
 }
 
 func NewCarsClient(baseURL string) *CarsClient {
 	return &CarsClient{
 		baseURL: baseURL,
 		http:    &http.Client{},
-		breaker: circuitbreaker.New(circuitbreaker.Config{
-			MaxFailures:  3,
-			ResetTimeout: 10 * time.Second,
+		breaker: circuitbreaker.NewTimestampBreaker(circuitbreaker.WindowConfig{
+			WindowSize:     60,               
+			MaxFailures: 0.5,              
+			MinRequests:    10,               
+			ResetTimeout:   10 * time.Second, 
 		}),
 	}
 }

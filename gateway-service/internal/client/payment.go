@@ -15,16 +15,18 @@ import (
 type PaymentClient struct {
 	baseURL string
 	http    *http.Client
-	breaker *circuitbreaker.Breaker
+	breaker *circuitbreaker.TimestampBreaker
 }
 
 func NewPaymentClient(baseURL string) *PaymentClient {
 	return &PaymentClient{
 		baseURL: baseURL,
 		http:    &http.Client{Timeout: 5 * time.Second},
-		breaker: circuitbreaker.New(circuitbreaker.Config{
-			MaxFailures:  3,
-			ResetTimeout: 10 * time.Second,
+		breaker: circuitbreaker.NewTimestampBreaker(circuitbreaker.WindowConfig{
+			WindowSize:     60,               
+			MaxFailures: 0.5,              
+			MinRequests:    10,               
+			ResetTimeout:   10 * time.Second, 
 		}),
 	}
 }
