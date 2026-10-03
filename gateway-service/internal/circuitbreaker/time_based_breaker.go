@@ -4,7 +4,6 @@ import (
 	"errors"
 	"sync"
 	"time"
-
 )
 
 var ErrTimeBasedCircuitOpen = errors.New("circuitbreaker is open")
@@ -114,6 +113,7 @@ func (b *TimestampBreaker) Failure() {
 		float64(failures)/float64(requests) >= b.cfg.MaxFailures {
 		b.state = StateOpen
 		b.openedAt = time.Now()
+		
 	}
 }
 
